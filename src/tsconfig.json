@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "strictFunctionTypes": false,
+    "moduleResolution": "node",
+    "allowJs": false,
+    "checkJs": false,
+    "outDir": "../dist"
+  }
+}

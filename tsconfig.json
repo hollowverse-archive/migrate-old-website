@@ -1,0 +1,10 @@
+{
+  "extends": "./node_modules/@hollowverse/common/tsconfig.json",
+  "compilerOptions": {
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  },
+  "exclude": [
+    "dist"
+  ]
+}

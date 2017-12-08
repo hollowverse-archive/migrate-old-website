@@ -1,0 +1,6 @@
+[submodule "src/api"]
+	path = src/api
+	url = git@github.com:forabi/hollowverse-api.git
+[submodule "src/scraper"]
+	path = src/scraper
+	url = git@github.com:forabi/scraper.git
