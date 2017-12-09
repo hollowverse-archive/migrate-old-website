@@ -8,7 +8,7 @@ import { NotablePersonEventComment } from './api/src/database/entities/comment';
 import { NotablePersonLabel } from './api/src/database/entities/notablePersonLabel';
 import { EventLabel } from './api/src/database/entities/eventLabel';
 import { readJson } from './api/src/helpers/readFile';
-import { findKey, intersectionWith } from 'lodash';
+import { findKey, intersectionWith, kebabCase } from 'lodash';
 import * as uuid from 'uuid/v4';
 
 type FirebaseExport = {
@@ -65,22 +65,20 @@ connection
       Object.values(json.notablePersons).forEach(np => {
         np.events.forEach(e => {
           e.labels.forEach(text => {
-            eventLabels.add(text);
+            eventLabels.add(kebabCase(text));
           });
         });
       });
 
       const savedEventLabels = await entityManager.save(
-        Array.from(eventLabels.values())
-          .map(text => text.toLowerCase())
-          .map(text => {
-            const label = new EventLabel();
-            label.id = uuid();
-            label.createdAt = new Date();
-            label.text = text;
+        Array.from(eventLabels.values()).map(text => {
+          const label = new EventLabel();
+          label.id = uuid();
+          label.createdAt = new Date();
+          label.text = text;
 
-            return label;
-          }),
+          return label;
+        }),
       );
 
       return Promise.all(
@@ -101,7 +99,7 @@ connection
             notablePerson.labels = [
               ...notablePerson.labels,
               ...(await Promise.all(
-                labels.map(text => text.toLowerCase()).map(async text => {
+                labels.map(kebabCase).map(async text => {
                   const saved =
                     (await notablePersonLabels.findOne({ text })) ||
                     notablePersonLablesToSave.get(text);
