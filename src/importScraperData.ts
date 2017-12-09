@@ -7,6 +7,7 @@ import { compact } from 'lodash';
 import { connection } from './api/src/database/connection';
 import { NotablePerson } from './api/src/database/entities/notablePerson';
 import { EditorialSummaryNode } from './api/src/database/entities/editorialSummaryNode';
+import { EditorialSummary } from './api/src/database/entities/editorialSummary';
 import { NotablePersonLabel } from './api/src/database/entities/notablePersonLabel';
 import { readJson } from './api/src/helpers/readFile';
 import { Result, isPiece, isResultWithContent } from './scraper/src/lib/scrape';
@@ -27,48 +28,43 @@ connection
       const files = await glob('src/scraper/output/scraperResults/*.json');
       const labelsToSave = new Map<string, NotablePersonLabel>();
 
-      const people = await bluebird.map(files, async file => {
-        const json = await readJson<ScraperResult>(file);
+      const people = await bluebird.map(
+        files,
+        async file => {
+          const json = await readJson<ScraperResult>(file);
 
-        if (json.wikipediaData === undefined) {
-          throw new TypeError('Expected object to have Wikipedia data.');
-        }
+          if (json.wikipediaData === undefined) {
+            throw new TypeError('Expected object to have Wikipedia data.');
+          }
 
-        const slug = decodeURI(json.wikipediaData.url).replace(
-          'https://en.wikipedia.org/wiki/',
-          '',
-        );
-        const oldSlug = path.basename(file).replace('.json', '');
+          const slug = decodeURI(json.wikipediaData.url).replace(
+            'https://en.wikipedia.org/wiki/',
+            '',
+          );
+          const oldSlug = path.basename(file).replace('.json', '');
 
-        const notablePerson =
-          (await notablePeople.findOne({ where: { slug } })) ||
-          new NotablePerson();
-        notablePerson.id = notablePerson.id || uuid();
+          const notablePerson =
+            (await notablePeople.findOne({ slug })) || new NotablePerson();
 
-        notablePerson.name = json.wikipediaData.title;
-        notablePerson.slug = slug;
-        notablePerson.oldSlug = oldSlug;
-        const matchingPhotos = await glob(`${slug}.*`, {
-          cwd: 'src/scraper/output/images',
-          matchBase: false,
-        });
+          notablePerson.id = notablePerson.id || uuid();
 
-        notablePerson.photoId =
-          matchingPhotos.length > 0 ? matchingPhotos[0] : null;
+          notablePerson.name = json.wikipediaData.title;
+          notablePerson.slug = slug;
+          notablePerson.oldSlug = oldSlug;
+          const matchingPhotos = await glob(`${slug}.*`, {
+            cwd: 'src/scraper/output/images',
+            matchBase: false,
+          });
 
-        if (isResultWithContent(json)) {
-          const { religion, politicalViews } = json;
-
-          const summary: string[] = compact([religion, politicalViews]);
-
-          notablePerson.summary =
-            summary.length > 0 ? summary.join('\n') : null;
+          notablePerson.photoId =
+            matchingPhotos.length > 0 ? matchingPhotos[0] : null;
 
           notablePerson.labels = await bluebird.map(json.tags, async tag => {
             const text = tag.toLowerCase();
             const saved =
               (await notablePersonLabels.findOne({ text })) ||
               labelsToSave.get(text);
+
             if (saved) {
               return saved;
             }
@@ -83,12 +79,22 @@ connection
             return label;
           });
 
-          notablePerson.editorialSummaryAuthor = json.author;
+          if (isResultWithContent(json)) {
+            const { religion, politicalViews } = json;
 
-          notablePerson.editorialSummaryNodes = json.content.map(
-            (_node, order) => {
+            const summary: string[] = compact([religion, politicalViews]);
+
+            notablePerson.summary =
+              summary.length > 0 ? summary.join('\n') : null;
+
+            const editorialSummary = new EditorialSummary();
+            editorialSummary.author = json.author;
+            editorialSummary.lastUpdatedOn = json.lastUpdatedOn
+              ? new Date(json.lastUpdatedOn)
+              : null;
+            editorialSummary.nodes = json.content.map((_node, order) => {
               const node = new EditorialSummaryNode();
-              node.notablePerson = notablePerson;
+              node.editorialSummary = editorialSummary;
               node.type = _node.type;
               node.id = uuid();
               node.order = order;
@@ -100,12 +106,15 @@ connection
               }
 
               return node;
-            },
-          );
-        }
+            });
 
-        return notablePerson;
-      });
+            notablePerson.editorialSummary = Promise.resolve(editorialSummary);
+          }
+
+          return notablePerson;
+        },
+        { concurrency: 20 },
+      );
 
       const labels = Array.from(labelsToSave.values());
       await notablePersonLabels.save(labels);
