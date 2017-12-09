@@ -28,6 +28,11 @@
     "validate-filenames",
     "lint-staged"
   ],
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "lodash": "^4.17.4",
+    "uuid": "^3.1.0"
+  },
   "devDependencies": {
     "@hollowverse/common": "hollowverse/common",
     "@hollowverse/validate-filenames": "^1.3.3",
@@ -37,7 +42,6 @@
     "@types/node": "^8.0.57",
     "@types/uuid": "^3.4.3",
     "babel-eslint": "^8.0.3",
-    "bluebird": "^3.5.1",
     "eslint": "^4.12.1",
     "eslint-config-airbnb": "^16.1.0",
     "eslint-config-prettier": "^2.9.0",
@@ -45,7 +49,6 @@
     "eslint-plugin-jsx-a11y": "^6.0.2",
     "eslint-plugin-react": "^7.5.1",
     "lint-staged": "^6.0.0",
-    "lodash": "^4.17.4",
     "nodemon": "^1.12.5",
     "npm-run-all": "^4.1.2",
     "pre-commit": "^1.2.2",
@@ -59,7 +62,6 @@
     "tslint-eslint-rules": "^4.1.1",
     "tslint-microsoft-contrib": "^5.0.1",
     "tslint-react": "^3.2.0",
-    "typescript": "^2.6.2",
-    "uuid": "^3.1.0"
+    "typescript": "^2.6.2"
   }
 }
