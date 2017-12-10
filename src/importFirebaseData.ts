@@ -147,7 +147,7 @@ connection
 
                     event.labels = intersectionWith(
                       savedEventLabels,
-                      ev.labels,
+                      ev.labels.map(kebabCase),
                       (a: EventLabel, text: string) => a.text === text,
                     );
 
