@@ -3,14 +3,20 @@
 import * as uuid from 'uuid/v4';
 import * as path from 'path';
 import * as bluebird from 'bluebird';
-import { compact } from 'lodash';
+import { compact, memoize, negate } from 'lodash';
 import { connection } from './api/src/database/connection';
-import { NotablePerson } from './api/src/database/entities/notablePerson';
-import { EditorialSummaryNode } from './api/src/database/entities/editorialSummaryNode';
-import { EditorialSummary } from './api/src/database/entities/editorialSummary';
-import { NotablePersonLabel } from './api/src/database/entities/notablePersonLabel';
+import { NotablePerson } from './api/src/database/entities/NotablePerson';
+import { EditorialSummaryNode } from './api/src/database/entities/EditorialSummaryNode';
+import { EditorialSummary } from './api/src/database/entities/EditorialSummary';
+import { NotablePersonLabel } from './api/src/database/entities/NotablePersonLabel';
 import { readJson } from './api/src/helpers/readFile';
-import { Result, isPiece, isResultWithContent } from './scraper/src/lib/scrape';
+import {
+  Result,
+  isResultWithContent,
+  isBlockPiece,
+  isInlinePiece,
+  hasParent,
+} from './scraper/src/lib/scrape';
 import { WikipediaData } from './scraper/src/lib/getWikipediaInfo';
 import { glob } from './scraper/src/lib/helpers';
 
@@ -87,26 +93,57 @@ connection
             notablePerson.summary =
               summary.length > 0 ? summary.join('\n') : null;
 
+            const idToUuid = memoize(_ => uuid());
+
+            const getChildren = (node: EditorialSummaryNode) => {
+              return json.content
+                .filter(child => {
+                  return (
+                    hasParent(child) && idToUuid(child.parentId) === node.id
+                  );
+                })
+                .map((_child, i) => {
+                  const child = new EditorialSummaryNode();
+                  child.parent = node;
+                  child.order = i;
+                  child.type = _child.type;
+                  child.editorialSummary = node.editorialSummary;
+                  if (isInlinePiece(_child)) {
+                    child.id = uuid();
+                    const { sourceTitle, sourceUrl, text } = _child;
+                    child.sourceTitle = sourceTitle || null;
+                    child.sourceUrl = sourceUrl || null;
+                    child.text = text || null;
+                    child.children = [];
+                  } else {
+                    child.id = idToUuid(_child.id);
+                    child.children = getChildren(child);
+                  }
+
+                  return child;
+                });
+            };
+
             const editorialSummary = new EditorialSummary();
             editorialSummary.author = json.author;
             editorialSummary.lastUpdatedOn = json.lastUpdatedOn
               ? new Date(json.lastUpdatedOn)
               : null;
-            editorialSummary.nodes = json.content.map((_node, order) => {
-              const node = new EditorialSummaryNode();
-              node.editorialSummary = editorialSummary;
-              node.type = _node.type;
-              node.id = uuid();
-              node.order = order;
-              if (isPiece(_node)) {
-                const { sourceTitle, sourceUrl, text } = _node;
-                node.sourceTitle = sourceTitle || null;
-                node.sourceUrl = sourceUrl || null;
-                node.text = text || null;
-              }
 
-              return node;
-            });
+            editorialSummary.nodes = json.content
+              .filter(isBlockPiece)
+              .filter(negate(hasParent))
+              .map((_node, i) => {
+                const node = new EditorialSummaryNode();
+                node.editorialSummary = editorialSummary;
+                node.type = _node.type;
+                node.order = i;
+                node.id = idToUuid(_node.id);
+                node.children = getChildren(node);
+                node.parent = null;
+
+                return node;
+              });
 
             notablePerson.editorialSummary = editorialSummary;
           }
