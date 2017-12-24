@@ -3,20 +3,12 @@
 import * as uuid from 'uuid/v4';
 import * as path from 'path';
 import * as bluebird from 'bluebird';
-import { compact, memoize, negate } from 'lodash';
+import { compact } from 'lodash';
 import { connection } from './api/src/database/connection';
 import { NotablePerson } from './api/src/database/entities/NotablePerson';
-import { EditorialSummaryNode } from './api/src/database/entities/EditorialSummaryNode';
-import { EditorialSummary } from './api/src/database/entities/EditorialSummary';
 import { NotablePersonLabel } from './api/src/database/entities/NotablePersonLabel';
 import { readJson } from './api/src/helpers/readFile';
-import {
-  Result,
-  isResultWithContent,
-  isBlockPiece,
-  isInlinePiece,
-  hasParent,
-} from './scraper/src/lib/scrape';
+import { Result, isResultWithContent } from './scraper/src/lib/scrape';
 import { WikipediaData } from './scraper/src/lib/getWikipediaInfo';
 import { glob } from './scraper/src/lib/helpers';
 
@@ -92,60 +84,6 @@ connection
 
             notablePerson.summary =
               summary.length > 0 ? summary.join('\n') : null;
-
-            const idToUuid = memoize(_ => uuid());
-
-            const getChildren = (node: EditorialSummaryNode) => {
-              return json.content
-                .filter(child => {
-                  return (
-                    hasParent(child) && idToUuid(child.parentId) === node.id
-                  );
-                })
-                .map((_child, i) => {
-                  const child = new EditorialSummaryNode();
-                  child.parent = node;
-                  child.order = i;
-                  child.type = _child.type;
-                  child.editorialSummary = node.editorialSummary;
-                  if (isInlinePiece(_child)) {
-                    child.id = uuid();
-                    const { sourceTitle, sourceUrl, text } = _child;
-                    child.sourceTitle = sourceTitle || null;
-                    child.sourceUrl = sourceUrl || null;
-                    child.text = text || null;
-                    child.children = [];
-                  } else {
-                    child.id = idToUuid(_child.id);
-                    child.children = getChildren(child);
-                  }
-
-                  return child;
-                });
-            };
-
-            const editorialSummary = new EditorialSummary();
-            editorialSummary.author = json.author;
-            editorialSummary.lastUpdatedOn = json.lastUpdatedOn
-              ? new Date(json.lastUpdatedOn)
-              : null;
-
-            editorialSummary.nodes = json.content
-              .filter(isBlockPiece)
-              .filter(negate(hasParent))
-              .map((_node, i) => {
-                const node = new EditorialSummaryNode();
-                node.editorialSummary = editorialSummary;
-                node.type = _node.type;
-                node.order = i;
-                node.id = idToUuid(_node.id);
-                node.children = getChildren(node);
-                node.parent = null;
-
-                return node;
-              });
-
-            notablePerson.editorialSummary = editorialSummary;
           }
 
           return notablePerson;
@@ -155,7 +93,9 @@ connection
 
       const labels = Array.from(labelsToSave.values());
       await notablePersonLabels.save(labels);
-      await notablePeople.save(people);
+      await bluebird.map(people, p => notablePeople.save(p), {
+        concurrency: 20,
+      });
     }),
   )
   .then(() => {
