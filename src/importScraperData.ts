@@ -78,7 +78,11 @@ connection
           });
 
           if (isResultWithContent(json)) {
-            const { religion, politicalViews } = json;
+            const { religion, politicalViews, lastUpdatedOn } = json;
+
+            notablePerson.addedOn = lastUpdatedOn
+              ? new Date(lastUpdatedOn)
+              : null;
 
             const summary: string[] = compact([religion, politicalViews]);
 
