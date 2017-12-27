@@ -84,7 +84,7 @@ connection
 
           await notablePeople.save(c);
         } else {
-          console.warn('Could not find notable person', oldSlug);
+          console.warn('Could not find image for notable person', oldSlug);
         }
       });
     }),
