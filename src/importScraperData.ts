@@ -57,25 +57,27 @@ connection
           notablePerson.photoId =
             matchingPhotos.length > 0 ? matchingPhotos[0] : null;
 
-          notablePerson.labels = await bluebird.map(json.tags, async tag => {
-            const text = tag.toLowerCase();
-            const saved =
-              (await notablePersonLabels.findOne({ text })) ||
-              labelsToSave.get(text);
+          notablePerson.labels = Promise.resolve(
+            await bluebird.map(json.tags, async tag => {
+              const text = tag.toLowerCase();
+              const saved =
+                (await notablePersonLabels.findOne({ text })) ||
+                labelsToSave.get(text);
 
-            if (saved) {
-              return saved;
-            }
+              if (saved) {
+                return saved;
+              }
 
-            const label = new NotablePersonLabel();
-            label.id = uuid();
-            label.createdAt = new Date();
-            label.text = text;
+              const label = new NotablePersonLabel();
+              label.id = uuid();
+              label.createdAt = new Date();
+              label.text = text;
 
-            labelsToSave.set(text, label);
+              labelsToSave.set(text, label);
 
-            return label;
-          });
+              return label;
+            }),
+          );
 
           if (isResultWithContent(json)) {
             const { religion, politicalViews, lastUpdatedOn } = json;

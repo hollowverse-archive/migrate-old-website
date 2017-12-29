@@ -1,12 +1,12 @@
 // tslint:disable no-console no-non-null-assertion max-func-body-length
 
 import { connection } from './api/src/database/connection';
-import { NotablePerson } from './api/src/database/entities/notablePerson';
-import { User } from './api/src/database/entities/user';
-import { NotablePersonEvent } from './api/src/database/entities/event';
-import { NotablePersonEventComment } from './api/src/database/entities/comment';
-import { NotablePersonLabel } from './api/src/database/entities/notablePersonLabel';
-import { EventLabel } from './api/src/database/entities/eventLabel';
+import { NotablePerson } from './api/src/database/entities/NotablePerson';
+import { User } from './api/src/database/entities/User';
+import { NotablePersonEvent } from './api/src/database/entities/NotablePersonEvent';
+import { NotablePersonEventComment } from './api/src/database/entities/NotablePersonEventComment';
+import { NotablePersonLabel } from './api/src/database/entities/NotablePersonLabel';
+import { EventLabel } from './api/src/database/entities/EventLabel';
 import { readJson } from './api/src/helpers/readFile';
 import { findKey, intersectionWith, kebabCase } from 'lodash';
 import * as uuid from 'uuid/v4';
@@ -96,8 +96,8 @@ connection
             notablePerson.summary = notablePerson.summary || summary;
             notablePerson.oldSlug = notablePerson.oldSlug || oldSlug;
 
-            notablePerson.labels = [
-              ...notablePerson.labels,
+            notablePerson.labels = Promise.resolve([
+              ...(await notablePerson.labels),
               ...(await Promise.all(
                 labels.map(kebabCase).map(async text => {
                   const saved =
@@ -117,7 +117,7 @@ connection
                   return label;
                 }),
               )),
-            ];
+            ]);
 
             await entityManager.save(
               Array.from(notablePersonLablesToSave.values()),

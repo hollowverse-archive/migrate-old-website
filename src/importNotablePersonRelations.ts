@@ -30,17 +30,19 @@ connection
 
         const c = await notablePeople.findOne({ oldSlug });
         if (c) {
-          c.relatedPeople = await bluebird
-            .map(json.relatedPeople, p => {
-              const related = notablePeople.findOne({ oldSlug: p.slug });
-              if (related) {
-                return related;
-              }
-              throw new Error(
-                `Could not find related notable person ${p.slug}`,
-              );
-            })
-            .filter(Boolean);
+          c.relatedPeople = Promise.resolve(
+            await bluebird
+              .map(json.relatedPeople, p => {
+                const related = notablePeople.findOne({ oldSlug: p.slug });
+                if (related) {
+                  return related;
+                }
+                throw new Error(
+                  `Could not find related notable person ${p.slug}`,
+                );
+              })
+              .filter(Boolean),
+          );
 
           await notablePeople.save(c);
         } else {

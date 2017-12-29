@@ -101,7 +101,7 @@ connection
                 return node;
               });
 
-            notablePerson.editorialSummary = editorialSummary;
+            notablePerson.editorialSummary = Promise.resolve(editorialSummary);
           }
 
           return notablePerson;
