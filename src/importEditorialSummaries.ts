@@ -68,7 +68,7 @@ connection
                     child.id = uuid();
                     const { sourceTitle, sourceUrl, text } = _child;
                     child.sourceTitle = sourceTitle || null;
-                    child.sourceUrl = sourceUrl || null;
+                    child.sourceUrl = sourceUrl ? sourceUrl.trimRight() : null;
                     child.text = text || null;
                     child.children = [];
                   } else {
